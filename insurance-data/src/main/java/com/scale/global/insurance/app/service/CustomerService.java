@@ -1,16 +1,24 @@
 package com.scale.global.insurance.app.service;
 
-import com.scale.global.insurance.app.model.CustomerDTO;
+import com.scale.global.insurance.app.api.CustomerRequest;
+import com.scale.global.insurance.app.api.CustomerResponse;
 
 import java.util.List;
 
-public interface CustomerService {
+public interface CustomerService extends com.scale.global.insurance.app.api.CustomerService {
 
-    CustomerDTO findById(Integer id);
+    @Override
+    CustomerResponse findById(Integer id);
 
-    List<CustomerDTO> findAll();
+    @Override
+    List<CustomerResponse> findAll();
 
-    CustomerDTO save(CustomerDTO customer);
+    @Override
+    CustomerResponse create(CustomerRequest request);
 
+    @Override
+    CustomerResponse update(Integer id, CustomerRequest request);
+
+    @Override
     void deleteById(Integer id);
 }

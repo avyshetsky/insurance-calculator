@@ -1,10 +1,10 @@
 package com.scale.global.insurance.app.service.impl;
 
-import com.scale.global.insurance.app.converters.CustomerCommandToCustomerConverter;
-import com.scale.global.insurance.app.converters.CustomerToCustomerCommandConverter;
+import com.scale.global.insurance.app.api.CustomerNotFoundException;
+import com.scale.global.insurance.app.api.CustomerRequest;
+import com.scale.global.insurance.app.api.CustomerResponse;
+import com.scale.global.insurance.app.engine.PriceCalculator;
 import com.scale.global.insurance.app.entity.Customer;
-import com.scale.global.insurance.app.exceptions.CustomerNotFoundException;
-import com.scale.global.insurance.app.model.CustomerDTO;
 import com.scale.global.insurance.app.repositories.CustomerRepository;
 import com.scale.global.insurance.app.service.CustomerService;
 import org.junit.jupiter.api.BeforeEach;
@@ -18,7 +18,9 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.times;
@@ -30,20 +32,16 @@ class CustomerServiceImplTest {
     @Mock
     CustomerRepository customerRepository;
     @Mock
-    CustomerCommandToCustomerConverter customerCommandToCustomerConverter;
-    @Mock
-    CustomerToCustomerCommandConverter customerToCustomerCommandConverter;
+    PriceCalculator priceCalculator;
 
     CustomerService customerService;
 
     Customer customer;
-    CustomerDTO customerDTO;
 
     @BeforeEach
     void setUp() {
-        MockitoAnnotations.initMocks(this);
-        customerService = new CustomerServiceImpl(customerRepository, customerCommandToCustomerConverter,
-                                                    customerToCustomerCommandConverter);
+        MockitoAnnotations.openMocks(this);
+        customerService = new CustomerServiceImpl(customerRepository, priceCalculator);
         customer = Customer.builder()
                 .insuranceNumber(123)
                 .firstName("Tirion")
@@ -51,27 +49,20 @@ class CustomerServiceImplTest {
                 .dateOfBirth(LocalDate.now().minusYears(30))
                 .inceptionOfThePolicy(LocalDate.now().minusYears(5).minusDays(5))
                 .build();
-        customerDTO = CustomerDTO.builder()
-                .insuranceNumber(123)
-                .firstName("Tirion")
-                .lastName("Lannister")
-                .dateOfBirth(LocalDate.now().minusYears(30))
-                .inceptionOfThePolicy(LocalDate.now().minusYears(5).minusDays(5))
-                .rate(new BigDecimal("10.23"))
-                .build();
     }
 
     @Test
     void findById() {
         when(customerRepository.findById(anyInt())).thenReturn(Optional.of(customer));
-        when(customerToCustomerCommandConverter.convert(any())).thenReturn(customerDTO);
-        CustomerDTO customerById = customerService.findById(1);
+        when(priceCalculator.calculateRate(any(), any())).thenReturn(new BigDecimal("10.23"));
+        CustomerResponse response = customerService.findById(1);
 
-        assertEquals(customerById.getInsuranceNumber(), customer.getInsuranceNumber());
-        assertEquals(customerById.getFirstName(), customer.getFirstName());
-        assertEquals(customerById.getLastName(), customer.getLastName());
-        assertEquals(customerById.getDateOfBirth(), customer.getDateOfBirth());
-        assertEquals(customerById.getInceptionOfThePolicy(), customer.getInceptionOfThePolicy());
+        assertEquals(customer.getInsuranceNumber(), response.insuranceNumber());
+        assertEquals(customer.getFirstName(), response.firstName());
+        assertEquals(customer.getLastName(), response.lastName());
+        assertEquals(customer.getDateOfBirth(), response.dateOfBirth());
+        assertEquals(customer.getInceptionOfThePolicy(), response.inceptionOfThePolicy());
+        assertEquals(new BigDecimal("10.23"), response.rate());
     }
 
     @Test
@@ -82,25 +73,40 @@ class CustomerServiceImplTest {
 
     @Test
     void findAll() {
-        when(customerRepository.findAll()).thenReturn(Arrays.asList(new Customer(), new Customer()));
-        when((customerToCustomerCommandConverter.convert(any()))).thenReturn(new CustomerDTO());
-        List<CustomerDTO> all = customerService.findAll();
+        when(customerRepository.findAll()).thenReturn(Arrays.asList(customer, customer));
+        when(priceCalculator.calculateRate(any(), any())).thenReturn(BigDecimal.ZERO);
+        List<CustomerResponse> all = customerService.findAll();
         assertEquals(2, all.size());
         verify(customerRepository, times(1)).findAll();
-        verify(customerToCustomerCommandConverter, times(2)).convert(any());
     }
 
     @Test
-    void save() {
+    void create() {
         when(customerRepository.save(any())).thenReturn(customer);
-        when((customerToCustomerCommandConverter.convert(any()))).thenReturn(customerDTO);
-        CustomerDTO savedCustomer = customerService.save(new CustomerDTO());
-        assertNotNull(savedCustomer);
-        assertEquals(savedCustomer.getInsuranceNumber(), customer.getInsuranceNumber());
-        assertEquals(savedCustomer.getFirstName(), customer.getFirstName());
-        assertEquals(savedCustomer.getLastName(), customer.getLastName());
-        assertEquals(savedCustomer.getDateOfBirth(), customer.getDateOfBirth());
-        assertEquals(savedCustomer.getInceptionOfThePolicy(), customer.getInceptionOfThePolicy());
+        when(priceCalculator.calculateRate(any(), any())).thenReturn(new BigDecimal("10.23"));
+        CustomerRequest request = new CustomerRequest(
+                "Tirion", "Lannister",
+                LocalDate.now().minusYears(30),
+                LocalDate.now().minusYears(5).minusDays(5)
+        );
+        CustomerResponse saved = customerService.create(request);
+        assertNotNull(saved);
+        assertEquals(customer.getInsuranceNumber(), saved.insuranceNumber());
+        assertEquals(customer.getFirstName(), saved.firstName());
+    }
+
+    @Test
+    void update() {
+        when(customerRepository.save(any())).thenReturn(customer);
+        when(priceCalculator.calculateRate(any(), any())).thenReturn(new BigDecimal("10.23"));
+        CustomerRequest request = new CustomerRequest(
+                "Tirion", "Lannister",
+                LocalDate.now().minusYears(30),
+                LocalDate.now().minusYears(5).minusDays(5)
+        );
+        CustomerResponse updated = customerService.update(123, request);
+        assertNotNull(updated);
+        assertEquals(customer.getInsuranceNumber(), updated.insuranceNumber());
     }
 
     @Test
