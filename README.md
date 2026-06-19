@@ -25,6 +25,28 @@ Multi-module Maven project:
 | `insurance-engine` | Business logic: tariff rates, date calculations, price engine |
 | `insurance-data` | Persistence layer: JPA entities, repositories, service implementations |
 | `insurance-controller` | Web layer: REST controllers, exception handling, observability config |
+#About this project.
+
+A rest api for premium calculation depending on tariff, bonus, customer age and customer inception date.
+
+## Tech Stack:
+-	Java 8
+-	Maven
+-	SpringBoot 2.1.7
+-	H2
+-	jUnit 5
+-	Mockito
+-	Swagger 2.7.0
+-	Project Lombok
+-   ValidationAPI
+-   Log4j
+
+## Project structure.
+
+Maven multi module project consisting of 3 parts:
+-	“insurance-controller” main module with controllers, swagger and SpringBootApplication 
+-	“insurance-data” module related to database features
+-	“insurance-engine” module related to final price calculation
 
 ## How to Start
 
