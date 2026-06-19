@@ -1,7 +1,10 @@
 package com.scale.global.insurance.app.controller;
 
-import com.scale.global.insurance.app.model.CustomerDTO;
-import com.scale.global.insurance.app.service.CustomerService;
+import com.scale.global.insurance.app.api.CustomerRequest;
+import com.scale.global.insurance.app.api.CustomerResponse;
+import com.scale.global.insurance.app.api.CustomerService;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Min;
 import org.springframework.http.HttpStatus;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -14,8 +17,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-import javax.validation.Valid;
-import javax.validation.constraints.Min;
 import java.util.List;
 
 @RestController
@@ -23,32 +24,32 @@ import java.util.List;
 @Validated
 public class CustomersController {
 
-    private CustomerService customerService;
+    private final CustomerService customerService;
 
     public CustomersController(CustomerService customerService) {
         this.customerService = customerService;
     }
 
     @GetMapping
-    public List<CustomerDTO> getCustomers() {
+    public List<CustomerResponse> getCustomers() {
         return customerService.findAll();
     }
 
     @GetMapping("/{id}")
-    public CustomerDTO getCustomer(@PathVariable @Min(1) Integer id) {
+    public CustomerResponse getCustomer(@PathVariable @Min(1) Integer id) {
         return customerService.findById(id);
     }
 
     @PostMapping
-    public CustomerDTO saveCustomer(@RequestBody @Valid CustomerDTO customerDTO) {
-        customerDTO.setInsuranceNumber(null);
-        return customerService.save(customerDTO);
+    @ResponseStatus(HttpStatus.CREATED)
+    public CustomerResponse saveCustomer(@RequestBody @Valid CustomerRequest request) {
+        return customerService.create(request);
     }
 
     @PutMapping("/{id}")
-    public CustomerDTO updateCustomer(@PathVariable @Min(1) Integer id, @RequestBody @Valid CustomerDTO customerDTO) {
-        customerDTO.setInsuranceNumber(id);
-        return customerService.save(customerDTO);
+    public CustomerResponse updateCustomer(@PathVariable @Min(1) Integer id,
+                                           @RequestBody @Valid CustomerRequest request) {
+        return customerService.update(id, request);
     }
 
     @DeleteMapping("/{id}")

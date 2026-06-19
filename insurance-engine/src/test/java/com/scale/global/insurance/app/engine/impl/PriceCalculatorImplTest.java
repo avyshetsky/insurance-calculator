@@ -5,14 +5,17 @@ import com.scale.global.insurance.app.engine.PriceCalculator;
 import com.scale.global.insurance.app.engine.TariffRate;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-import org.mockito.internal.configuration.MockAnnotationProcessor;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.stream.Stream;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
@@ -28,73 +31,44 @@ class PriceCalculatorImplTest {
 
     @BeforeEach
     void setUp() {
-        MockitoAnnotations.initMocks(this);
+        MockitoAnnotations.openMocks(this);
         priceCalculator = new PriceCalculatorImpl(tariffRate, datesCalculator);
         when(tariffRate.getProgramPrice()).thenReturn(new BigDecimal("300.00"));
     }
 
-    /**
-     * (1 * 300.00) * (1 - 0.09) = 300.00 * 0.91 = EUR 273,00
-     */
-    @Test
-    void calculateRateThomasDanzig() {
-        when(datesCalculator.getAgeToDate(any(), any())).thenReturn(29);
-        when(datesCalculator.yearsSinceInception(any(), any())).thenReturn(9);
-        when(tariffRate.getRate(29)).thenReturn(new BigDecimal("1.0"));
-        BigDecimal price = priceCalculator.calculateRate(LocalDate.now(), LocalDate.now());
-        assertEquals(new BigDecimal("273.00"), price);
+    static Stream<Arguments> rateCalculationCases() {
+        return Stream.of(
+                // age=29, rate=1.0, yearsInception=9 -> (1.0*300)*(100-9)/100 = 300*0.91 = 273.00
+                Arguments.of(29, new BigDecimal("1.0"), 9, new BigDecimal("273.00")),
+                // age=69, rate=0.0, yearsInception=39 -> (0.0*300)*(100-39)/100 = 0.00
+                Arguments.of(69, new BigDecimal("0.0"), 39, new BigDecimal("0.00")),
+                // age=59, rate=1.25, yearsInception=19 -> (1.25*300)*(100-19)/100 = 375*0.81 = 303.75
+                Arguments.of(59, new BigDecimal("1.25"), 19, new BigDecimal("303.75")),
+                // age=35, rate=1.00, yearsInception=11 -> (1.00*300)*(100-11)/100 = 300*0.89 = 267.00
+                Arguments.of(35, new BigDecimal("1.00"), 11, new BigDecimal("267.00")),
+                // age=66, rate=1.25, yearsInception=33 -> (1.25*300)*(100-33)/100 = 375*0.67 = 251.25
+                Arguments.of(66, new BigDecimal("1.25"), 33, new BigDecimal("251.25"))
+        );
     }
 
-    /**
-     * (0 * 300.00) * (1 - 0.39) = 0.00 * 0.61 = EUR 0,00
-     */
-    @Test
-    void calculateRatePetraHeisenberg() {
-        when(datesCalculator.getAgeToDate(any(), any())).thenReturn(69);
-        when(datesCalculator.yearsSinceInception(any(), any())).thenReturn(39);
-        when(tariffRate.getRate(69)).thenReturn(new BigDecimal("0.0"));
+    @ParameterizedTest(name = "age={0}, rate={1}, years={2} -> price={3}")
+    @MethodSource("rateCalculationCases")
+    void calculateRate(int age, BigDecimal rate, int yearsInception, BigDecimal expectedPrice) {
+        when(datesCalculator.getAgeToDate(any(), any())).thenReturn(age);
+        when(datesCalculator.yearsSinceInception(any(), any())).thenReturn(yearsInception);
+        when(tariffRate.getRate(age)).thenReturn(rate);
+
         BigDecimal price = priceCalculator.calculateRate(LocalDate.now(), LocalDate.now());
-        assertEquals(new BigDecimal("0.00"), price);
+        assertEquals(expectedPrice, price);
     }
 
-    /**
-     * (1.25 * 300.00) * (1 - 0.19) = 300.00 * 0.81 = EUR 303.75
-     */
     @Test
-    void calculateRateVincentVega() {
-        when(datesCalculator.getAgeToDate(any(), any())).thenReturn(59);
-        when(tariffRate.getRate(59)).thenReturn(new BigDecimal("1.25"));
-        when(datesCalculator.yearsSinceInception(any(), any())).thenReturn(19);
+    void calculateRateWithZeroYearsInception() {
+        when(datesCalculator.getAgeToDate(any(), any())).thenReturn(25);
+        when(datesCalculator.yearsSinceInception(any(), any())).thenReturn(0);
+        when(tariffRate.getRate(25)).thenReturn(new BigDecimal("1.00"));
+
         BigDecimal price = priceCalculator.calculateRate(LocalDate.now(), LocalDate.now());
-        assertEquals(new BigDecimal("303.75"), price);
+        assertEquals(new BigDecimal("300.00"), price);
     }
-
-    /**
-     * (1 * 300.00) * (1 - 0.11) = 300.00 * 0.89 = EUR 267,00
-     */
-    @Test
-    void calculateRateJeffSciarra() {
-        when(datesCalculator.getAgeToDate(any(), any())).thenReturn(35);
-        when(tariffRate.getRate(35)).thenReturn(new BigDecimal("1.00"));
-        when(datesCalculator.yearsSinceInception(any(), any())).thenReturn(11);
-        BigDecimal price = priceCalculator.calculateRate(LocalDate.now(), LocalDate.now());
-        assertEquals(new BigDecimal("267.00"), price);
-    }
-
-
-
-    /**
-     * (1.25 * 300.00) * (1 - 0.33) = 375.00 * 0.67 = EUR 251,25
-     */
-    @Test
-    void calculateRateIanMalholz() {
-        when(datesCalculator.getAgeToDate(any(), any())).thenReturn(66);
-        when(tariffRate.getRate(66)).thenReturn(new BigDecimal("1.25"));
-        when(datesCalculator.yearsSinceInception(any(), any())).thenReturn(33);
-        BigDecimal price = priceCalculator.calculateRate(LocalDate.now(), LocalDate.now());
-        assertEquals(new BigDecimal("251.25"), price);
-    }
-
-
-
 }

@@ -1,6 +1,6 @@
-package com.scale.global.insurance.app.exceptions;
+package com.scale.global.insurance.app.api;
 
-public class CustomerNotFoundException extends RuntimeException{
+public class CustomerNotFoundException extends RuntimeException {
     private static final String MESSAGE = "Customer not found with id = ";
 
     public CustomerNotFoundException(Integer id) {
